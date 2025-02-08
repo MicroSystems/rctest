@@ -4,9 +4,27 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Log;
 
 class Openaiservice extends Controller
 {
+    protected $client;
+    protected $apiKey;
+    protected $baseUri;
+
+    public function __construct()
+    {
+        // Initialize the Guzzle HTTP Client
+        $this->client = new Client();
+
+        // Your OpenAI API key (ideally should be stored in .env)
+        $this->apiKey = env('OPENAI_API_KEY');
+        $this->baseUri = 'https://api.openai.com/v1/';
+    }
 
     /**
      * Send a request to OpenAI API with the 'text-davinci-003' model.
@@ -16,35 +34,41 @@ class Openaiservice extends Controller
      */
     public function getInsight($logs, $content)
     {
-        // The API key from the .env file
-        $apiKey = env('OPENAI_API_KEY');
-
-        // Prepare the request data
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $apiKey
-        ])
-        ->post("https://api.openai.com/v1/completions", [
-            'model' => 'gpt-3.5-turbo-instruct',  // The model you want to use
-            'prompt' => $content, // The prompt you want to send
-            'max_tokens' => 150,  // Maximum number of tokens to generate
-            'temperature' => 0.7, // Controls randomness
-            'top_p' => 1,         // Nucleus sampling
-            'n' => 1,             // Number of responses
-            'stop' => null        // Optional stop sequence
-        ]);
-
-        // Check if the request was successful
-        if ($response->successful()) {
-            return response()->json([
-                'success' => true,
-                'response' => $response->json()
+        try {
+            // Request payload
+            $response = $this->client->post($this->baseUri . 'completions', [
+                'json' => [
+                    'model' => $model,
+                    'prompt' => $content,
+                    'max_tokens' => '1000',
+                ],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                ]
             ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error communicating with OpenAI API',
-                'error' => $response->body()
-            ]);
+
+            // Parse the response and return it
+            $body = json_decode($response->getBody()->getContents(), true);
+            return $body['choices'][0]['text'] ?? null;
+
+        } catch (ClientException $e) {
+            // Handle client-side errors (4xx responses)
+            Log::error('OpenAI Client Error: ' . $e->getMessage());
+            return ['error' => 'Client error occurred. Please check your request.'];
+
+        } catch (ServerException $e) {
+            // Handle server-side errors (5xx responses)
+            Log::error('OpenAI Server Error: ' . $e->getMessage());
+            return ['error' => 'Server error occurred. Please try again later.'];
+
+        } catch (RequestException $e) {
+            // Handle general request errors
+            Log::error('OpenAI Request Error: ' . $e->getMessage());
+            return ['error' => 'Request failed. Please check your connection and try again.'];
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            Log::error('OpenAI Unexpected Error: ' . $e->getMessage());
+            return ['error' => 'An unexpected error occurred.'];
         }
     }
 
