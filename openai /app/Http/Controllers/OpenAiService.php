@@ -1,16 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Services;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Log;
 
-class Openaiservice extends Controller
+class OpenAIService
 {
     protected $client;
     protected $apiKey;
@@ -27,20 +25,22 @@ class Openaiservice extends Controller
     }
 
     /**
-     * Send a request to OpenAI API with the 'text-davinci-003' model.
+     * Send a request to OpenAI API.
      *
-     * @param Request $request
-     * @return \Illuminate\Http\Response
+     * @param string $model
+     * @param string $prompt
+     * @param int $maxTokens
+     * @return array|null
      */
-    public function getInsight($logs, $content)
+    public function generateResponse(string $model, string $prompt, int $maxTokens = 100)
     {
         try {
             // Request payload
             $response = $this->client->post($this->baseUri . 'completions', [
                 'json' => [
                     'model' => $model,
-                    'prompt' => $content,
-                    'max_tokens' => '1000',
+                    'prompt' => $prompt,
+                    'max_tokens' => $maxTokens,
                 ],
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->apiKey,
@@ -71,23 +71,4 @@ class Openaiservice extends Controller
             return ['error' => 'An unexpected error occurred.'];
         }
     }
-
-    public function storegetInsight(Request $request){
-        $validated = $request->validate([
-            'summarize_logs' => 'required|string|max:255',  // Title is required and cannot exceed 255 characters
-            'content' => 'required|string|min:10', // Content is required and must be at least 10 characters
-        ]);
-
-        $this->getInsights($request->input('summarize_logs'), $request->input('content'));
-
-        Insight::create([
-            'summarize_logs' => $validated['summarize_logs'],
-            'content' => $validated['content'],
-        ]);
-
-        // Redirect back to the form with a success message
-        return redirect()->route('i/')->with('success', 'Insight created successfully!');
-    }
 }
-
-

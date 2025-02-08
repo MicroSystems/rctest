@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Openaiservice;
+use App\Http\Controllers\Openaicontroller;
 
 
 Route::get('/history', function () {
@@ -17,5 +17,5 @@ Route::get('/', function () {
 });
 
 
-Route::get('openai', [OpenAiService::class, 'getInsight'])->name('openai.sendRequest');
-Route::post('openai', [OpenAiService::class, 'storetInsight'])->name('openai.store');
+Route::get('openai', [Openaicontroller::class, 'getInsight'])->name('openai.sendRequest');
+Route::post('openai', [Openaicontroller::class, 'storetInsight'])->name('openai.store');
